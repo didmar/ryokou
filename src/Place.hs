@@ -2,7 +2,7 @@
 
 module Place (Place(..)) where
 
-import Data.Aeson (ToJSON)
+import Data.Aeson (ToJSON, FromJSON)
 import GHC.Generics (Generic)
 
 data Place = Place {
@@ -15,3 +15,5 @@ data Place = Place {
 } deriving (Show, Generic)
 
 instance ToJSON Place
+
+instance FromJSON Place

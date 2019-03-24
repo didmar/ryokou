@@ -23,3 +23,18 @@ executable scrap_places
                        regex-tdfa -any,
                        aeson -any,
                        bytestring -any
+
+executable export_kml
+  hs-source-dirs:      src
+  main-is:             ExportKML.hs
+  default-language:    Haskell2010
+  other-modules:       Place
+  build-depends:       base >= 4.7 && < 5,
+                       aeson -any,
+                       bytestring -any,
+                       utf8-string -any,
+                       either -any,
+                       xml-conduit -any,
+                       xml-hamlet -any,
+                       containers -any,
+                       text -any
