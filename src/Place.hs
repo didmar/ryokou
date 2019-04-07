@@ -11,7 +11,8 @@ data Place = Place {
   lat :: Float,
   lng :: Float,
   url :: String,
-  desc :: String
+  desc :: String,
+  city :: String
 } deriving (Show, Generic)
 
 instance ToJSON Place

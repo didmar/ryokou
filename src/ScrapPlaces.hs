@@ -5,7 +5,7 @@
 import Control.Applicative
 import Control.Monad
 import Data.Aeson (encode)
-import Data.List (isPrefixOf, isSuffixOf, nub)
+import Data.List (isPrefixOf, isSuffixOf, nub, intersperse)
 import Data.Maybe (fromJust)
 import qualified Data.ByteString.Lazy.Char8 as BL
 import System.IO (hPutStrLn, stderr)
@@ -25,26 +25,27 @@ main = do
   forM_ cityLinks $ \cityLink -> do
     hPutStrLn stderr $ "Scraping city ... " ++ show cityLink
     placeLinks <- scrapPlaceLinks cityLink
-    forM_ placeLinks $ \placeLink -> do
-      hPutStrLn stderr $ "Scraping place ... " ++ show placeLink
-      place <- scrapPlace placeLink
-      let encodedPlace = encode place :: BL.ByteString
-       in BL.putStrLn encodedPlace
+    forM_ placeLinks $ \placeLink ->
+      let city = BL.unpack $ last $ BL.split '/'$ fromJust $ BL.stripSuffix "/" $ BL.pack cityLink
+       in do
+        hPutStrLn stderr $ "Scraping place ... " ++ show placeLink
+        place <- scrapPlace city placeLink
+        BL.putStrLn (encode place :: BL.ByteString)
 
 -- link prefix will be something like /en/kyushu_okinawa/fukuoka/kanko/1850/
-scrapPlace :: String -> IO Place
-scrapPlace linkPrefix = do
-  scrapedPlace <- scrapeURL url (placeScraper url)
+scrapPlace :: String -> String -> IO Place
+scrapPlace city linkPrefix = do
+  scrapedPlace <- scrapeURL url (placeScraper city url)
   return $ fromJust scrapedPlace
   where url = siteURL ++ linkPrefix
 
-placeScraper :: String -> Scraper String Place
-placeScraper url = do
+placeScraper :: String -> String -> Scraper String Place
+placeScraper city url = do
   (lat, lng) <- gpsScraper
   tableEntries <- tableEntriesScraper
   desc <- attr "content" $ "meta" @: ["name" @= "description"]
   let (name, rating) = extractTableEntries tableEntries
-   in return Place {name=name, rating=rating, lat=lat, lng=lng, url=url, desc=desc}
+   in return Place {name=name, rating=rating, lat=lat, lng=lng, url=url, desc=desc, city=city}
 
 gpsScraper :: Scraper String (Float, Float)
 gpsScraper = do
