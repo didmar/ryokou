@@ -37,26 +37,50 @@ makeDoc places =
 <Document>
     <name>Highlighted Icon</name>
     <description>Place your mouse over the icon to see it display the new icon</description>
-    <Style id="fiveStarsPlacemark">
-      <IconStyle>
-        <Icon>
-          <href>http://maps.google.com/mapfiles/kml/paddle/red-stars.png</href>
-    <Style id="normalPlacemark">
-      <IconStyle>
-        <Icon>
-          <href>http://maps.google.com/mapfiles/kml/paddle/wht-blank.png</href>
+    ^{styleNodes}
     $forall place <- places
           ^{placemarkNodes place}
+|]
+
+ratingToStyleData :: Map.Map Integer (String, String)
+ratingToStyleData = Map.fromList [
+  (5, ("fiveStarsPlacemark", "0212f9")),
+  (4, ("fourStarPlacemark",  "025df9")),
+  (3, ("threeStarPlacemark", "028ef9")),
+  (2, ("twoStarPlacemark",   "02c0f9")),
+  (1, ("oneStarPlacemark",   "02f9f9"))
+  ]
+
+styleNodes :: [Node]
+styleNodes = (Map.toList ratingToStyleData) >>= (\(_, d) -> styleNode d)
+
+styleNode :: (String, String) -> [Node]
+styleNode (name, colorCode) = [xml|
+<Style id="#{pack $ name}">
+  <IconStyle>
+    <color>
+      ff#{pack $ colorCode}
+    <scale>
+      1
+    <Icon>
+      <href>
+        http://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png
+    <hotSpot x="32" xunits="pixels" y="64" yunits="insetPixels">
+  <LabelStyle>
+    <scale>
+      1
 |]
 
 placemarkNodes :: Place -> [Node]
 placemarkNodes (Place {name=name, rating=rating, lat=lat, lng=lng, url=url, desc=desc}) = [xml|
 <Placemark>
   <name> #{pack $ name}
-  <styleUrl> #{pack $ style}
+  <description> #{pack $ description}
+  <styleUrl> ##{pack $ styleUrl}
   <Point>
     <coordinates>
       #{pack $ coords}
 |]
-  where style = if rating == 5 then "#fiveStarsPlacemark" else "#normalPlacemark"
+  where description = desc ++ " " ++ url
+        styleUrl = fst $ fromJust $ Map.lookup rating ratingToStyleData
         coords = (show lng) ++ "," ++ (show lat) ++ ",0"
