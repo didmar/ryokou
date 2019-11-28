@@ -38,7 +38,7 @@ stack exec <executable_name> -- <arguments>
 
 ###  Scrap places from Japan Hoppers
 
-This script will scrap the Japan Hoppers for places to visit in a given region,
+This script will scrap Japan Hoppers website for places to visit in a given region,
 and write the data in JSON format.
 
 ```
