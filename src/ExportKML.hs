@@ -1,6 +1,11 @@
 -- Export the places data into KML format
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE DeriveGeneric #-} -- for arguments parsing
+{-# LANGUAGE DataKinds #-} -- for arguments documentation
+{-# LANGUAGE TypeOperators #-} -- for arguments documentation
+{-# LANGUAGE FlexibleInstances  #-}  -- To instanciate ParseRecord for Args Wrapped
+{-# LANGUAGE StandaloneDeriving #-}  -- To derive Show for Args Unwrapped
 
 import Control.Monad
 import Data.Aeson (eitherDecode)
@@ -11,18 +16,28 @@ import Place (Place(..))
 import Prelude hiding (writeFile)
 import qualified Data.ByteString.Lazy.UTF8 as BLU
 import qualified Data.Map as Map
+import Options.Generic
 import System.IO (openFile, hSetEncoding, utf8, hGetContents, IOMode(ReadMode))
 import Text.Hamlet.XML
 import Text.XML
 
+data Args w = Args
+    { infile :: w ::: String <?> "Filepath to get places data from (JSON format)"
+    , outfile :: w ::: String <?> "Filepath to write map data to (KML format)"
+    } deriving (Generic)
+
+instance ParseRecord (Args Wrapped)
+deriving instance Show (Args Unwrapped)
+
 main :: IO ()
 main = do
-  inputHandle <- openFile "places.json" ReadMode
+  args <- unwrapRecord "Export the places data into a KML format map"
+  inputHandle <- openFile (infile args) ReadMode
   hSetEncoding inputHandle utf8
   content <- hGetContents inputHandle
   let contentLines = (lines content) :: [String]
       places = map parseFromJSON contentLines
-   in writeFile def "map.kml" $ makeDoc places
+   in writeFile def (outfile args) $ makeDoc places
 
 parseFromJSON :: String -> Place
 parseFromJSON line =

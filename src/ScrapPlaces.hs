@@ -1,6 +1,10 @@
 -- Dumps the places data in JSON format on stdout
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric #-} -- for arguments parsing
+{-# LANGUAGE DataKinds #-} -- for arguments documentation
+{-# LANGUAGE TypeOperators #-} -- for arguments documentation
+{-# LANGUAGE FlexibleInstances  #-}  -- To instanciate ParseRecord for Args Wrapped
+{-# LANGUAGE StandaloneDeriving #-}  -- To derive Show for Args Unwrapped
 
 import Control.Applicative
 import Control.Monad
@@ -8,7 +12,8 @@ import Data.Aeson (encode)
 import Data.List (isPrefixOf, isSuffixOf, nub, intersperse)
 import Data.Maybe (fromJust)
 import qualified Data.ByteString.Lazy.Char8 as BL
-import System.IO (hPutStrLn, stderr)
+import Options.Generic
+import System.IO (hPutStrLn, stderr, openFile, IOMode(WriteMode), hClose)
 import Text.HTML.Scalpel
 import Text.Regex.TDFA
 
@@ -16,21 +21,31 @@ import Place (Place(..))
 
 siteURL = "https://www.japanhoppers.com"
 
--- Only scraping one region at a time
-region = "kyushu_okinawa"
+data Args w = Args
+    { region :: w ::: String <?>
+      "Region to crawl places for (possible values: hokkaido, tohoku, kanto, chubu, kansai, chugoku, shikoku, kyushu_okinawa)"
+    , outfile :: w ::: String <?> "Filename to write results to (JSON format)"
+    } deriving (Generic)
+
+instance ParseRecord (Args Wrapped)
+deriving instance Show (Args Unwrapped)
 
 main :: IO ()
 main = do
-  cityLinks <- scrapCityLinks
-  forM_ cityLinks $ \cityLink -> do
-    hPutStrLn stderr $ "Scraping city ... " ++ show cityLink
-    placeLinks <- scrapPlaceLinks cityLink
-    forM_ placeLinks $ \placeLink ->
-      let city = BL.unpack $ last $ BL.split '/'$ fromJust $ BL.stripSuffix "/" $ BL.pack cityLink
-       in do
-        hPutStrLn stderr $ "Scraping place ... " ++ show placeLink
-        place <- scrapPlace city placeLink
-        BL.putStrLn (encode place :: BL.ByteString)
+  args <- unwrapRecord "Scrap places from JapanHoppers"
+  handle <- openFile (outfile args) WriteMode
+  cityLinks <- scrapCityLinks $ region args
+  forM_ cityLinks $ \cityLink ->
+    let city = extractCityfromLink cityLink in
+    do
+      hPutStrLn stderr $ "Scraping city ... " ++ show cityLink
+      placeLinks <- scrapPlaceLinks cityLink
+      forM_ placeLinks $ \placeLink ->
+        do
+          hPutStrLn stderr $ "Scraping place ... " ++ show placeLink
+          place <- scrapPlace city placeLink
+          BL.hPutStrLn handle (encode place :: BL.ByteString)
+  hClose handle
 
 -- link prefix will be something like /en/kyushu_okinawa/fukuoka/kanko/1850/
 scrapPlace :: String -> String -> IO Place
@@ -104,11 +119,14 @@ scrapPlaceLinks cityLink = do
   -- Filter out /en/kyushu_okinawa/fukuoka/kanko/ from the places url
   return $ filter (not . ("kanko/" `isSuffixOf`)) links
 
-scrapCityLinks :: IO [String]
-scrapCityLinks = do
+scrapCityLinks :: String -> IO [String]
+scrapCityLinks region = do
   links <- scrapLinks url
   return $ filter ((/=) url) links
   where url = "/en/" ++ region ++ "/"
+
+extractCityfromLink :: String -> String
+extractCityfromLink cityLink = BL.unpack $ last $ BL.split '/'$ fromJust $ BL.stripSuffix "/" $ BL.pack cityLink
 
 -- Finds all the <a href="..."> and filters on a prefix
 scrapLinks :: String -> IO [String]

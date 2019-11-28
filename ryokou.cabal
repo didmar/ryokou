@@ -22,7 +22,8 @@ executable scrap_places
                        scalpel -any,
                        regex-tdfa -any,
                        aeson -any,
-                       bytestring -any
+                       bytestring -any,
+                       optparse-generic -any
 
 executable export_kml
   hs-source-dirs:      src
@@ -37,4 +38,5 @@ executable export_kml
                        xml-conduit -any,
                        xml-hamlet -any,
                        containers -any,
-                       text -any
+                       text -any,
+                       optparse-generic -any
